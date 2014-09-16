@@ -89,6 +89,25 @@ void printReceiveInfo(uint8_t *buffer, uint8_t len){
   Serial.println(F(" ]"));
 }
 
+unsigned int floatToTrimmedString(char* dest, float value){
+  char floatBuffer[16];
+  unsigned int floatLength, offset;
+  
+  dtostrf(value, 8, 3, floatBuffer);
+  floatLength = strlen(floatBuffer);
+  offset = 0;
+  for(offset=0; offset < 12; ++offset){
+    if(floatBuffer[offset] != 0x20){
+      break;
+    }
+  }
+    
+  floatLength -= offset;
+  strncpy(dest, floatBuffer + offset, floatLength);
+  
+  return floatLength;
+}
+
 unsigned int printTimestampField(char* buffer, int value, char suffix){
   char intBuffer[16];
   unsigned int length = 0;
@@ -102,53 +121,85 @@ unsigned int printTimestampField(char* buffer, int value, char suffix){
 }
 
 unsigned int writeISO8601(char* buffer){
-  unsigned int offset = 0;
+  unsigned int length = 0;
   
   // Date
-  offset += printTimestampField(buffer, GPS.year, '-');
-  offset += printTimestampField(buffer + offset, GPS.month, '-');
-  offset += printTimestampField(buffer + offset, GPS.day, 'T');
+  length += printTimestampField(buffer, GPS.year, '-');
+  length += printTimestampField(buffer + length, GPS.month, '-');
+  length += printTimestampField(buffer + length, GPS.day, 'T');
   
   // Time
-  offset += printTimestampField(buffer + offset, GPS.hour, ':');
-  offset += printTimestampField(buffer + offset, GPS.minute, ':');
-  offset += printTimestampField(buffer + offset, GPS.seconds, '.');
-  offset += printTimestampField(buffer + offset, GPS.milliseconds, 'Z');
+  length += printTimestampField(buffer + length, GPS.hour, ':');
+  length += printTimestampField(buffer + length, GPS.minute, ':');
+  length += printTimestampField(buffer + length, GPS.seconds, '.');
+  length += printTimestampField(buffer + length, GPS.milliseconds, 'Z');
   
-  return offset;
+  return length;
 }
-  
-void sendData(){
-  char sendBuffer[128];
-  sendBuffer[0] = 'D';
-  unsigned int offset = 1;
+
+unsigned int writeDataLine(char* buffer){
+  unsigned int length = 0;
   
   float data[8] = {20, 30, 6, 138, 139, 250, 260, 270};
   for(int i=0; i < 8; ++i){
-    // Prefix with comma
-    sendBuffer[offset++] = ',';
-    
     // Add Datum
     float datum = data[i] + random(-300, 300)/(float)100;
-    dtostrf(datum, 8, 3, sendBuffer + offset);
-    offset += 8;
+    length += floatToTrimmedString(buffer + length, datum);
+       
+    // End with comma
+    buffer[length++] = ',';
   }
   
-  // Write Timestamp'
-  sendBuffer[offset++] = ',';
-  offset += writeISO8601(sendBuffer+offset);
+  if(GPS.fix){
+    // Write Timestamp
+    length += writeISO8601(buffer+length);
+    buffer[length++] = ',';
+    
+    length += floatToTrimmedString(buffer + length, GPS.lon);
+    buffer[length++] = ',';
+    
+    length += floatToTrimmedString(buffer + length, GPS.lat);
+  } else {
+    length -= 1; // Remove trailing comma from for loop above
+  }
   
-  sendBuffer[offset++] = ',';
-  dtostrf(GPS.lon, 8, 3, sendBuffer + offset);
-  offset += 8;
+  buffer[length++] = '\r';
+  buffer[length++] = '\n';
+  return length;
+}
+
+void sendData(){
+  unsigned int length = 0;
+  unsigned int bytesRemaining;
+  char dataBuffer[160];
+  dataBuffer[length++] = 'D';
+  dataBuffer[length++] = ',';
   
-  sendBuffer[offset++] = ',';
-  dtostrf(GPS.lat, 8, 3, sendBuffer + offset);
-  offset += 8;
   
-  sendBuffer[offset++] = '\r';
-  sendBuffer[offset++] = '\n';
-  uart.write((uint8_t*)sendBuffer, offset);
+  length += writeDataLine(dataBuffer + length);
+  
+  for(unsigned int i = 0; i < length; i+=20){
+    bytesRemaining = min(length - i, 20);
+    uart.write((uint8_t*)dataBuffer + i, bytesRemaining);
+  }
+}
+
+void verifySave(){
+  char dataBuffer[160];
+  unsigned int length = 0;
+  
+  length = writeDataLine(dataBuffer);
+  File dataFile = SD.open("DATA.CSV", FILE_WRITE);
+  
+  uint8_t* response;
+  if(dataFile){
+    length = writeDataLine(dataBuffer);
+    dataFile.write((uint8_t*)dataBuffer, length);
+    uart.print("V,1\r\n");
+  } else {
+    uart.print("V,0\r\n");
+  }
+  dataFile.close();
 }
 
 /**************************************************************************/
@@ -166,7 +217,7 @@ void rxCallback(uint8_t *buffer, uint8_t len)
       break;
     case 'S':
       Serial.println(F("Recognized Save Data Command"));
-      //verifySave();
+      verifySave();
       break;
     default:
       Serial.println(F("Unrecognized Command!"));
