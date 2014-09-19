@@ -202,6 +202,9 @@ void verifySave(){
   dataFile.close();
 }
 
+const uint8_t RXBUFFERMAX = 256;
+uint8_t rxBuffer[RXBUFFERMAX];
+uint8_t rxLength = 0;
 /**************************************************************************/
 /*!
     This function is called whenever data arrives on the RX channel
@@ -209,19 +212,32 @@ void verifySave(){
 /**************************************************************************/
 void rxCallback(uint8_t *buffer, uint8_t len)
 {
-  printReceiveInfo(buffer, len);
-  switch(buffer[0]){
-    case 'R':
-      Serial.println(F("Recognized Request Data Command"));
-      sendData();
-      break;
-    case 'S':
-      Serial.println(F("Recognized Save Data Command"));
-      verifySave();
-      break;
-    default:
-      Serial.println(F("Unrecognized Command!"));
-      break;
+  // Fill receive buffer
+  if(rxLength + len > RXBUFFERMAX){
+    len = RXBUFFERMAX - (rxLength + len);
+  }
+  strncpy((char *)rxBuffer + rxLength, (char*)buffer, len);
+  rxLength += len;
+  
+  // If line end detected, process the data.
+  if(rxBuffer[rxLength - 1] == '\n'){
+    Serial.print(F("Received: ")); Serial.print((char*) rxBuffer);
+    switch(buffer[0]){
+      case 'R':
+        Serial.println(F("Recognized Request Data Command"));
+        sendData();
+        break;
+      case 'S':
+        Serial.println(F("Recognized Save Data Command"));
+        verifySave();
+        break;
+      default:
+        Serial.println(F("Unrecognized Command!"));
+        break;
+    }
+    
+    rxLength = 0;
+    rxBuffer[rxLength] = '\0';
   }
 }
 
