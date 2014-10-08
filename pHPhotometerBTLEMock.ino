@@ -202,9 +202,9 @@ void verifySave(){
   dataFile.close();
 }
 
-const uint8_t RXBUFFERMAX = 256;
-uint8_t rxBuffer[RXBUFFERMAX];
-uint8_t rxLength = 0;
+#define RXBUFFERMAX 256
+static volatile uint8_t rxBuffer[RXBUFFERMAX];
+static volatile uint8_t rxLength = 0;
 /**************************************************************************/
 /*!
     This function is called whenever data arrives on the RX channel
@@ -213,16 +213,22 @@ uint8_t rxLength = 0;
 void rxCallback(uint8_t *buffer, uint8_t len)
 {
   // Fill receive buffer
-  if(rxLength + len > RXBUFFERMAX){
+  if((rxLength + len) > RXBUFFERMAX){
     len = RXBUFFERMAX - (rxLength + len);
   }
-  strncpy((char *)rxBuffer + rxLength, (char*)buffer, len);
+  strncpy((char *)(rxBuffer + rxLength), (char*)buffer, len);
   rxLength += len;
+  
+  for(int i=0; i < rxLength; ++i){
+    Serial.write(rxBuffer[i]);
+  }
+  Serial.println();
+  Serial.print("Length: "); Serial.println(rxLength);
   
   // If line end detected, process the data.
   if(rxBuffer[rxLength - 1] == '\n'){
     Serial.print(F("Received: ")); Serial.print((char*) rxBuffer);
-    switch(buffer[0]){
+    switch(rxBuffer[0]){
       case 'R':
         Serial.println(F("Recognized Request Data Command"));
         sendData();
