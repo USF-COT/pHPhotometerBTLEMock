@@ -168,6 +168,29 @@ unsigned int writeDataLine(char* buffer){
   return length;
 }
 
+void sendBlank(){
+  unsigned int length = 0;
+  unsigned int bytesRemaining;
+  
+  char sendBuffer[128];
+  sendBuffer[length++] = 'C';
+  
+  float blank[5] = { 20, 30, 6, 138, 139 };
+  for(unsigned int i = 0; i < 5; ++i){
+    sendBuffer[length++] = ',';
+    blank[i] += random(-300, 300)/(float)100;
+    length += floatToTrimmedString(sendBuffer + length, blank[i]);
+  }
+  
+  sendBuffer[length++] = '\r';
+  sendBuffer[length++] = '\n';
+  
+  for(unsigned int i = 0; i < length; i+=20){
+    bytesRemaining = min(length - i, 20);
+    uart.write((uint8_t*)sendBuffer + i, bytesRemaining);
+  }
+}
+
 void sendData(){
   unsigned int length = 0;
   unsigned int bytesRemaining;
@@ -229,8 +252,12 @@ void rxCallback(uint8_t *buffer, uint8_t len)
   if(rxBuffer[rxLength - 1] == '\n'){
     Serial.print(F("Received: ")); Serial.print((char*) rxBuffer);
     switch(rxBuffer[0]){
+      case 'B':
+        Serial.println(F("Recognized Blank Read Command"));
+        sendBlank();
+        break;
       case 'R':
-        Serial.println(F("Recognized Request Data Command"));
+        Serial.println(F("Recognized Sample Read Command"));
         sendData();
         break;
       case 'S':
@@ -279,6 +306,7 @@ void initBTLEUART(){
   uart.setRXcallback(rxCallback);
   uart.setACIcallback(aciCallback);
   uart.begin();
+  uart.setDeviceName("pH-1");
 }
 
 /**************************************************************************/
