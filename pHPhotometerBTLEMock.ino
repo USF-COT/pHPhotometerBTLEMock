@@ -140,7 +140,7 @@ unsigned int writeISO8601(char* buffer){
 unsigned int writeDataLine(char* buffer){
   unsigned int length = 0;
   
-  float data[8] = {20, 30, 6, 138, 139, 250, 260, 270};
+  float data[11] = {20, 30, 30, 6, 138, 139, 250, 260, 5, 6, 7};
   for(int i=0; i < 8; ++i){
     // Add Datum
     float datum = data[i] + random(-300, 300)/(float)100;
@@ -175,7 +175,7 @@ void sendBlank(){
   char sendBuffer[128];
   sendBuffer[length++] = 'C';
   
-  float blank[5] = { 20, 30, 6, 138, 139 };
+  float blank[5] = { 20, 30, 30, 138, 139 };
   for(unsigned int i = 0; i < 5; ++i){
     sendBuffer[length++] = ',';
     blank[i] += random(-300, 300)/(float)100;
