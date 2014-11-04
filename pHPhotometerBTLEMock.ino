@@ -185,6 +185,8 @@ void sendBlank(){
   sendBuffer[length++] = '\r';
   sendBuffer[length++] = '\n';
   
+  delay(20000 + random(-5000, 5000));
+  
   for(unsigned int i = 0; i < length; i+=20){
     bytesRemaining = min(length - i, 20);
     uart.write((uint8_t*)sendBuffer + i, bytesRemaining);
@@ -200,6 +202,8 @@ void sendData(){
   
   
   length += writeDataLine(dataBuffer + length);
+  
+  delay(30000 + random(-5000, 5000));
   
   for(unsigned int i = 0; i < length; i+=20){
     bytesRemaining = min(length - i, 20);
