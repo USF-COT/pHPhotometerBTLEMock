@@ -342,6 +342,10 @@ void loop()
   // Poll BTLE
   uart.pollACI();
   
+  if(uart.getState() == ACI_EVT_CONNECTED){
+    sendData();
+  }
+  
   // Poll GPS
   pollGPS();
   
