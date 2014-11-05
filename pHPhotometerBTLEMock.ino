@@ -141,7 +141,7 @@ unsigned int writeDataLine(char* buffer){
   unsigned int length = 0;
   
   float data[11] = {20, 30, 30, 6, 138, 139, 250, 260, 5, 6, 7};
-  for(int i=0; i < 8; ++i){
+  for(int i=0; i < 11; ++i){
     // Add Datum
     float datum = data[i] + random(-300, 300)/(float)100;
     length += floatToTrimmedString(buffer + length, datum);
