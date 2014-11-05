@@ -342,12 +342,12 @@ void loop()
   // Poll BTLE
   uart.pollACI();
   
+  // Poll GPS
+  pollGPS();
+  
   if(uart.getState() == ACI_EVT_CONNECTED){
     sendData();
   }
-  
-  // Poll GPS
-  pollGPS();
   
   // if millis() or timer wraps around, we'll just reset it
   if (timer > millis())  timer = millis();
