@@ -345,10 +345,6 @@ void loop()
   // Poll GPS
   pollGPS();
   
-  if(uart.getState() == ACI_EVT_CONNECTED){
-    sendData();
-  }
-  
   // if millis() or timer wraps around, we'll just reset it
   if (timer > millis())  timer = millis();
 }
