@@ -185,7 +185,7 @@ void sendBlank(){
   sendBuffer[length++] = '\r';
   sendBuffer[length++] = '\n';
   
-  delay(20000 + random(-5000, 5000));
+  //delay(20000 + random(-5000, 5000));
   
   for(unsigned int i = 0; i < length; i+=20){
     bytesRemaining = min(length - i, 20);
@@ -203,7 +203,7 @@ void sendData(){
   
   length += writeDataLine(dataBuffer + length);
   
-  delay(30000 + random(-5000, 5000));
+  //delay(30000 + random(-5000, 5000));
   
   for(unsigned int i = 0; i < length; i+=20){
     bytesRemaining = min(length - i, 20);
@@ -324,7 +324,7 @@ void setup(void)
   while(!Serial); // Leonardo/Micro should wait for serial init
   Serial.println(F("USF COT pH Photometer BTLE Mock Proto"));
 
-  initGPSShield();
+  //initGPSShield();
   initBTLEUART();
   randomSeed(analogRead(0));
 }
@@ -343,7 +343,7 @@ void loop()
   uart.pollACI();
   
   // Poll GPS
-  pollGPS();
+  //pollGPS();
   
   // if millis() or timer wraps around, we'll just reset it
   if (timer > millis())  timer = millis();
