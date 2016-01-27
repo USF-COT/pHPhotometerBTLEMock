@@ -15,6 +15,16 @@
 #include <RFduinoBLE.h>
 #include "utilities.h"
 
+
+
+struct CONDREADING{
+  float conductivity;
+  float temperature;
+  float salinity;
+};
+
+CONDREADING condReading;
+
 // read a Hex value and return the decimal equivalent
 uint8_t parseHex(char c) {
   if (c < '0')
@@ -89,13 +99,45 @@ unsigned int floatToTrimmedString(char* dest, float value){
   return floatLength;
 }
 
+bool manualConductivity = false;
+void setConductivitySensor(volatile uint8_t* rxBuffer){
+  char* leader = strtok((char*)rxBuffer, ",");
+  char* choice = strtok(NULL, "\r");
+  int choiceID = atoi(choice);
+  manualConductivity = choiceID == 0;
+  if(choiceID >= 0 && choiceID < 2){
+    sendBTLEString("0\0", 2);
+  } else {
+    sendBTLEString("1\0", 2);
+  }
+}
+
+void setConductivityReading(volatile uint8_t* rxBuffer){
+  char* leader = strtok((char*)rxBuffer, ",");
+  char* conductivity = strtok(NULL, ",");
+  condReading.conductivity = atof(conductivity);
+  char* temperature = strtok(NULL, ",");
+  condReading.temperature = atof(temperature);
+  char* salinity = strtok(NULL, "\r");
+  condReading.salinity = atof(salinity);
+  sendBTLEString("0\0", 2);
+}
+
 unsigned int writeDataLine(char* buffer){
   unsigned int length = 0;
-  
-  float data[11] = {20, 30, 30, 6, 138, 139, 250, 260, 5, 6, 7};
+
+  float data[11] = {
+    condReading.conductivity,
+    condReading.temperature,
+    condReading.salinity,
+    6, 138, 139, 250, 260, 5, 6, 7
+  };
   for(int i=0; i < 11; ++i){
     // Add Datum
-    float datum = data[i] + random(-300, 300)/(float)100;
+    float datum = data[i];
+    if(!manualConductivity || (manualConductivity && i > 2)){
+      datum += random(-300, 300)/(float)100;
+    }
     length += floatToTrimmedString(buffer + length, datum);
        
     // End with comma
@@ -115,10 +157,17 @@ void sendBlank(){
   char sendBuffer[128];
   sendBuffer[length++] = 'C';
   
-  float blank[5] = { 20, 30, 30, 138, 139 };
+  float blank[5] = {
+    condReading.conductivity,
+    condReading.temperature,
+    condReading.salinity,
+    138, 139
+  };
   for(unsigned int i = 0; i < 5; ++i){
     sendBuffer[length++] = ',';
-    blank[i] += random(-300, 300)/(float)100;
+    if(!manualConductivity || (manualConductivity && i > 2)){
+      blank[i] += random(-300, 300)/(float)100;
+    }
     length += floatToTrimmedString(sendBuffer + length, blank[i]);
   }
   
@@ -180,6 +229,14 @@ void RFduinoBLE_onReceive(char *buffer, int len)
         Serial.println(F("Recognized Sample Read Command"));
         sendData();
         break;
+      case 'P':
+        Serial.println(F("Recognized Set Conductivity Sensor Command"));
+        setConductivitySensor(rxBuffer);
+        break;
+      case 'M':
+        Serial.println(F("Recognized Set Conductivity Command"));
+        setConductivityReading(rxBuffer);
+        break;
       default:
         Serial.println(F("Unrecognized Command!"));
         break;
@@ -207,6 +264,10 @@ void setup(void)
   Serial.begin(9600);
   while(!Serial); // Leonardo/Micro should wait for serial init
   Serial.println(F("USF COT pH Photometer BTLE Mock Proto"));
+
+  condReading.conductivity = 20;
+  condReading.temperature = 30;
+  condReading.salinity = 30;
   
   initBTLEUART();
   randomSeed(analogRead(6));
